@@ -35,11 +35,41 @@ class SSHKeyTransmitterError(Exception):
     pass
 
 
+class SocksManager:
+    """Socks manager class."""
+
+    def __init__(self, socks_host, socks_port):
+        """Constructor.
+
+        :Parameters:
+            - `socks_host`: str, SOCKS5 proxy host.
+            - `socks_port`: str, SOCKS5 proxy port.
+        """
+        self._host = socks_host
+        self._port = int(socks_port)
+
+    def create_socket(self, dest_host, dest_port):
+        """Create open socket.
+
+        :Parameters:
+            - `dest_host`: str, destination host to connect through proxy.
+            - `dest_port`: str/int, destination port to connect through proxy.
+        """
+        if not (self._host and self._port):
+            return None
+        sock = socks.socksocket()
+        sock.set_proxy(proxy_type=socks.SOCKS5,
+                       addr=self._host,
+                       port=self._port)
+        sock.connect((dest_host, dest_port))
+        return sock
+
+
 class SSHKeyTransmitter:
     """SSH Key Transmitter Class."""
 
-    def __init__(self, username, password, pubkey, hosts=None,
-                 hosts_file=None, socks_host=None, socks_port=None):
+    def __init__(self, username, password, pubkey, socks_manager,
+                 hosts=None, hosts_file=None):
         """Constructor.
 
         :Parameters:
@@ -48,8 +78,7 @@ class SSHKeyTransmitter:
             - `hosts`: list, hosts list to transmit.
             - `hosts_file`: str, path to file with hosts to transmit.
             - `pubkey`: str, path to public key file.
-            - `socks_host`: str, SOCKS5 proxy host.
-            - `socks_port`: str, SOCKS5 proxy port.
+            - `socks_manager`: obj, Socks manager instance.
         """
         self._log = logging.getLogger('SSHKeyTransmitter')
         logging.getLogger('paramiko').setLevel(logging.WARNING)
@@ -61,9 +90,7 @@ class SSHKeyTransmitter:
         self._pubkey_file = pubkey
         self._pubkey_data = None
 
-        self._socks_host = socks_host
-        self._socks_port = socks_port
-        self._socks = None
+        self._socks_manager = socks_manager
 
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -95,16 +122,14 @@ class SSHKeyTransmitter:
             except ValueError:
                 port = SSH_PORT
 
+            sock = None
             try:
                 self._log.info('Transmitting public key to %s:%s', host, port)
-
-                self._create_socks()
-                if self._socks:
-                    self._socks.connect((host, port))
+                sock = self._socks_manager.create_socket(host, port)
                 self._ssh.connect(hostname=host, port=port,
                                   username=self._username,
                                   password=self._password,
-                                  sock=self._socks)
+                                  sock=sock)
                 self._put_public_key()
             except SSHKeyTransmitterError:
                 exit_code = EXIT_ERROR
@@ -121,20 +146,12 @@ class SSHKeyTransmitter:
             finally:
                 if self._ssh.get_transport():
                     self._ssh.close()
-                if self._socks:
-                    self._socks.close()
-                    self._socks = None
+                if sock:
+                    sock.close()
         if errored_hosts:
             self._log.warning('Errored hosts: %s', ', '.join(errored_hosts))
         self._log.info('Finished transmitting %s', self._pubkey_file)
         return exit_code
-
-    def _create_socks(self):
-        if self._socks_host and self._socks_port:
-            self._socks = socks.socksocket()
-            self._socks.set_proxy(proxy_type=socks.SOCKS5,
-                                  addr=self._socks_host,
-                                  port=int(self._socks_port))
 
     def _put_public_key(self):
         """Transmit public key to connected host."""
@@ -264,13 +281,15 @@ def main():
         parser.print_help()
         return EXIT_ERROR
 
+    socks_manager = SocksManager(socks_host=args.socks_host,
+                                 socks_port=args.socks_port)
+
     transmitter = SSHKeyTransmitter(username=args.username,
                                     password=args.password,
                                     pubkey=args.pubkey,
                                     hosts=args.hosts,
                                     hosts_file=args.hosts_file,
-                                    socks_host=args.socks_host,
-                                    socks_port=args.socks_port)
+                                    socks_manager=socks_manager)
 
     return transmitter.run()
 
