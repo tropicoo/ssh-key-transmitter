@@ -9,6 +9,7 @@ import sys
 import paramiko
 import socks
 
+__version__ = '0.2'
 
 BANNER = """
 
@@ -31,7 +32,15 @@ EXIT_ERROR = 1
 
 
 class SSHKeyTransmitterError(Exception):
-    """SSH Key Transmitter Base Error Class."""
+    """SSH Key Transmitter Base Exception Class."""
+    pass
+
+
+class DataReadError(SSHKeyTransmitterError):
+    """SSH Key Transmitter Data Read Exception Class.
+
+    Used for local files read errors.
+    """
     pass
 
 
@@ -102,29 +111,37 @@ class SSHKeyTransmitter:
             - Boolean value indicating if transmit failed on any host.
         """
         exit_code = EXIT_OK
-        errored_hosts = []
 
         if not self._pubkey_file:
-            self._log.error('Path to public key not provided. '
-                            'Can\'t proceed.')
+            self._log.error('Path to public key not provided. Cannot proceed.')
             return EXIT_ERROR
 
         try:
-            self._read_pubkey()
-            if self._hosts_file:
-                self._read_hosts_from_file()
-        except SSHKeyTransmitterError:
+            self._read_data()
+        except DataReadError:
             return EXIT_ERROR
 
+        errored_hosts = self._run()
+        if errored_hosts:
+            exit_code = EXIT_ERROR
+            self._log.warning('Errored hosts: %s', ', '.join(errored_hosts))
+
+        self._log.info('Finished transmitting %s [exit code: %s]',
+                       self._pubkey_file, exit_code)
+        return exit_code
+
+    def _run(self):
+        """Main transmit."""
+        errored_hosts = []
         for host in self._hosts:
             try:
                 host, port = host.split(':')
             except ValueError:
                 port = SSH_PORT
 
+            self._log.info('Transmitting public key to %s:%s', host, port)
             sock = None
             try:
-                self._log.info('Transmitting public key to %s:%s', host, port)
                 sock = self._socks_manager.create_socket(host, port)
                 self._ssh.connect(hostname=host, port=port,
                                   username=self._username,
@@ -132,26 +149,29 @@ class SSHKeyTransmitter:
                                   sock=sock)
                 self._put_public_key()
             except SSHKeyTransmitterError:
-                exit_code = EXIT_ERROR
                 errored_hosts.append(host)
             except paramiko.ssh_exception.AuthenticationException as err:
-                self._log.error('Failed to authenticate to %s: %s',
-                                host, str(err))
-                exit_code = EXIT_ERROR
+                self._log.error('Failed to authenticate to %s: %s', host, err)
                 errored_hosts.append(host)
             except Exception:
                 self._log.exception('Failed to transmit SSH files to %s', host)
-                exit_code = EXIT_ERROR
                 errored_hosts.append(host)
             finally:
-                if self._ssh.get_transport():
-                    self._ssh.close()
-                if sock:
-                    sock.close()
-        if errored_hosts:
-            self._log.warning('Errored hosts: %s', ', '.join(errored_hosts))
-        self._log.info('Finished transmitting %s', self._pubkey_file)
-        return exit_code
+                self._cleanup(sock)
+        return errored_hosts
+
+    def _read_data(self):
+        """Read public key and hosts file."""
+        self._read_pubkey()
+        if self._hosts_file:
+            self._read_hosts_from_file()
+
+    def _cleanup(self, sock):
+        """Transmitter cleanup."""
+        if self._ssh.get_transport():
+            self._ssh.close()
+        if sock:
+            sock.close()
 
     def _put_public_key(self):
         """Transmit public key to connected host."""
@@ -159,18 +179,27 @@ class SSHKeyTransmitter:
         try:
             # Throw IOError if directory doesn't exist
             sftp.chdir(SSH_DIR)
-            self._put_key(sftp)
         except IOError:
-            # Create SSH_DIR
             sftp.chdir('.')
-            self._log.warning('Directory %s doesn\'t exist. Will be created.',
+            self._log.warning('Directory %s does not exist. Will be created.',
                               posixpath.join(sftp.getcwd(), SSH_DIR))
-            sftp.mkdir(SSH_DIR)
-            sftp.chmod(SSH_DIR, 0o700)
-            sftp.chdir(SSH_DIR)
+            self._create_ssh_dir(sftp)
+
+        try:
             self._put_key(sftp)
         finally:
             sftp.close()
+
+    @staticmethod
+    def _create_ssh_dir(sftp):
+        """Create `SSH_DIR` directory.
+
+        :Parameters:
+            - `sftp`: obj, paramiko sftp object.
+        """
+        sftp.mkdir(SSH_DIR)
+        sftp.chmod(SSH_DIR, 0o700)
+        sftp.chdir(SSH_DIR)
 
     def _put_key(self, sftp):
         """Transmit public key to connected host.
@@ -182,38 +211,61 @@ class SSHKeyTransmitter:
         try:
             # Throw IOError if file doesn't exist
             sftp.stat(SSH_AUTH_KEYS)
-
-            # Check if key exists
-            fd = sftp.file(SSH_AUTH_KEYS, mode='r', bufsize=1)
-            try:
-                for line in fd:
-                    if line.strip() == self._pubkey_data:
-                        self._log.warning('Public key %s already exists in %s',
-                                          self._pubkey_file, remote_path)
-                        return
-            finally:
-                fd.close()
-
-            # Append key
-            fd = sftp.file(SSH_AUTH_KEYS, mode='a', bufsize=1)
-            try:
-                fd.write('\n' + self._pubkey_data)
-                fd.flush()
-            finally:
-                fd.close()
-
-            self._log.info('Public key %s successfully appended to %s',
-                           self._pubkey_file, remote_path)
         except IOError:
-            # Create SSH_AUTH_KEYS file
-            self._log.warning('File %s doesn\'t exist. Will be created.',
+            # Create `SSH_AUTH_KEYS` file
+            self._log.warning('File %s does not exist. Will be created.',
                               remote_path)
-
-            sftp.put(self._pubkey_file, remote_path)
-            sftp.chmod(remote_path, 0o600)
-
+            self._create_ssh_auth_keys_file(sftp, remote_path)
             self._log.info('Public key %s successfully added to %s',
                            self._pubkey_file, remote_path)
+            return
+
+        if not self._key_exists(sftp, remote_path):
+            self._append_key(sftp, remote_path)
+
+    def _create_ssh_auth_keys_file(self, sftp, remote_path):
+        """Create `SSH_AUTH_KEYS` file.
+
+        :Parameters:
+            - `sftp`: obj, paramiko sftp object.
+            - `remote_path`: str, remote path to key.
+        """
+        sftp.put(self._pubkey_file, remote_path)
+        sftp.chmod(remote_path, 0o600)
+
+    def _key_exists(self, sftp, remote_path):
+        """Check if key exists.
+
+        :Parameters:
+            - `sftp`: obj, paramiko sftp object.
+            - `remote_path`: str, remote path to key.
+        """
+        fd = sftp.file(SSH_AUTH_KEYS, mode='r', bufsize=1)
+        try:
+            for line in fd:
+                if line.strip() == self._pubkey_data:
+                    self._log.warning('Public key %s already exists in %s',
+                                      self._pubkey_file, remote_path)
+                    return True
+        finally:
+            fd.close()
+        return False
+
+    def _append_key(self, sftp, remote_path):
+        """Append key.
+
+        :Parameters:
+            - `sftp`: obj, paramiko sftp object.
+            - `remote_path`: str, remote path to key.
+        """
+        fd = sftp.file(SSH_AUTH_KEYS, mode='a', bufsize=1)
+        try:
+            fd.write('\n' + self._pubkey_data)
+            fd.flush()
+        finally:
+            fd.close()
+        self._log.info('Public key %s successfully appended to %s',
+                       self._pubkey_file, remote_path)
 
     def _read_pubkey(self):
         """Read public key from file."""
@@ -225,7 +277,7 @@ class SSHKeyTransmitter:
             err_msg = 'Failed to read public key from {0}'.format(
                 self._pubkey_file)
             self._log.exception(err_msg)
-            raise SSHKeyTransmitterError(err_msg)
+            raise DataReadError(err_msg)
 
     def _read_hosts_from_file(self):
         """Read hosts list from file."""
@@ -236,7 +288,7 @@ class SSHKeyTransmitter:
         except Exception:
             err_msg = 'Failed to read hosts from {0}'.format(self._hosts_file)
             self._log.exception(err_msg)
-            raise SSHKeyTransmitterError(err_msg)
+            raise DataReadError(err_msg)
 
 
 def main():
@@ -276,8 +328,8 @@ def main():
                         help='socks5 proxy port')
 
     args = parser.parse_args()
-    if not all([args.pubkey, args.username, args.password]) or \
-            not any([args.hosts, args.hosts_file]):
+    if not (all([args.pubkey, args.username, args.password]) or
+            any([args.hosts, args.hosts_file])):
         parser.print_help()
         return EXIT_ERROR
 
