@@ -1,7 +1,8 @@
 SSH Key Transmitter
 ====================
-Bored to login to remote servers through SSH every time using 
-username/password combination?
+
+Bored to log in to remote servers through SSH every time using username/password
+combination?
 
 This simple script will help to transmit your SSH Public Key to them.
 
@@ -33,15 +34,17 @@ Python 3, Paramiko, PySocks.
 
 Installation
 ------------
+
 ```
 git clone https://github.com/tropicoo/ssh-key-transmitter.git
-pip3 install paramiko PySocks
+pip3 install -r requirements.txt
 ```
 
 Usage
 -----
-> Hosts or path to file with hosts, username, password and path to public key 
-file are mandatory.
+> Hosts or path to file with hosts, username, password and path to public key
+> file are mandatory.
+
 ```
 $ python3 ssh-key-transmit.py -h
 usage: ssh-key-transmit.py [-h] [-hosts HOSTS [HOSTS ...]] [-u USERNAME]
@@ -68,7 +71,9 @@ optional arguments:
   --socks-port SOCKS_PORT
                         socks5 proxy port
 ```
+
 #### Some details
+
 | Argument     | Description                                                                         |
 |:-------------|:------------------------------------------------------------------------------------|
 | -hosts       | One or more hosts separated by comma, accepted format \<HOST\> or \<HOST\>:\<PORT\> |
