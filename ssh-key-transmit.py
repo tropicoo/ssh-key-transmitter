@@ -5,13 +5,13 @@ import argparse
 import logging
 import posixpath
 import sys
-from typing import List, Optional, Union
+from enum import IntEnum
 
 import paramiko
 import socks
 from paramiko.sftp_client import SFTPClient
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 BANNER_TPL = """
 
@@ -25,12 +25,14 @@ BANNER_TPL = """
                                                                                                                                           ver. {version}
 
 """
-SSH_PORT = 22
-SSH_DIR = '.ssh'
-SSH_AUTH_KEYS = 'authorized_keys'
+DEFAULT_SSH_PORT = 22
+DEFAULT_SSH_DIR = '.ssh'
+DEFAULT_SSH_AUTH_KEYS = 'authorized_keys'
 
-EXIT_OK = 0
-EXIT_ERROR = 1
+
+class ExitCodeType(IntEnum):
+    EXIT_OK = 0
+    EXIT_ERROR = 1
 
 
 class SSHKeyTransmitterError(Exception):
@@ -55,7 +57,7 @@ class ArgumentsValidationError(Exception):
 class SocksManager:
     """Socks manager class."""
 
-    def __init__(self, socks_host: str, socks_port: int) -> None:
+    def __init__(self, socks_host: str | None, socks_port: int | None) -> None:
         """Constructor.
 
         :Parameters:
@@ -66,8 +68,8 @@ class SocksManager:
         self._port = socks_port
 
     def create_socket(
-            self, dest_host: str, dest_port: Union[str, int]
-    ) -> Optional[socks.socksocket]:
+        self, dest_host: str, dest_port: str | int
+    ) -> socks.socksocket | None:
         """Create open socket.
 
         :Parameters:
@@ -81,18 +83,22 @@ class SocksManager:
         sock.connect((dest_host, dest_port))
         return sock
 
+    @staticmethod
+    def close_socket(sock: socks.socksocket) -> None:
+        sock.close()
+
 
 class SSHKeyTransmitter:
     """SSH Key Transmitter Class."""
 
     def __init__(
-            self,
-            username: str,
-            password: str,
-            pubkey: str,
-            socks_manager: SocksManager,
-            hosts: Optional[List[str]] = None,
-            hosts_file: Optional[str] = None,
+        self,
+        username: str,
+        password: str,
+        pubkey: str,
+        socks_manager: SocksManager,
+        hosts: list[str] | None = None,
+        hosts_file: str | None = None,
     ) -> None:
         """Constructor.
 
@@ -102,7 +108,7 @@ class SSHKeyTransmitter:
             - `hosts`: list, hosts list to transmit.
             - `hosts_file`: str, path to file with hosts to transmit.
             - `pubkey`: str, path to public key file.
-            - `socks_manager`: obj, Socks manager instance.
+            - `socks_manager`: SocksManager, Socks manager instance.
         """
         self._log = logging.getLogger(self.__class__.__name__)
 
@@ -118,44 +124,49 @@ class SSHKeyTransmitter:
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    def run(self) -> int:
+    def run(self) -> ExitCodeType:
         """Run SSH Key Transmitter.
 
         Return
             - Int value indicating if transmit failed on any host.
         """
-        exit_code = EXIT_OK
+        exit_code_type = ExitCodeType.EXIT_OK
 
         if not self._pubkey_file:
             self._log.error('Path to public key not provided. Cannot proceed.')
-            return EXIT_ERROR
+            return ExitCodeType.EXIT_ERROR
 
         try:
             self._read_data()
         except DataReadError:
-            return EXIT_ERROR
+            return ExitCodeType.EXIT_ERROR
 
         errored_hosts = self._run()
         if errored_hosts:
-            exit_code = EXIT_ERROR
+            exit_code_type = ExitCodeType.EXIT_ERROR
             self._log.warning('Errored hosts: %s', ', '.join(errored_hosts))
 
         self._log.info(
-            'Finished transmitting %s [exit code: %s]', self._pubkey_file, exit_code
+            'Finished transmitting %s [exit code: %d]',
+            self._pubkey_file,
+            exit_code_type.value,
         )
-        return exit_code
+        return exit_code_type
 
-    def _run(self) -> List[str]:
+    def _run(self) -> list[str]:
         """Main transmit."""
         errored_hosts = []
         for host in self._hosts:
             try:
                 host, port = host.split(':')
             except ValueError:
-                port = SSH_PORT
+                self._log.warning(
+                    'Using default SSH port %d for %s', DEFAULT_SSH_PORT, host
+                )
+                port = DEFAULT_SSH_PORT
 
             self._log.info('Transmitting public key to %s:%s', host, port)
-            sock = None
+            sock: socks.socksocket | None = None
             try:
                 sock = self._socks_manager.create_socket(host, port)
                 self._ssh.connect(
@@ -168,7 +179,7 @@ class SSHKeyTransmitter:
                 self._put_public_key()
             except SSHKeyTransmitterError:
                 errored_hosts.append(host)
-            except paramiko.ssh_exception.AuthenticationException as err:
+            except paramiko.AuthenticationException as err:
                 self._log.error('Failed to authenticate to %s: %s', host, err)
                 errored_hosts.append(host)
             except Exception:
@@ -184,24 +195,23 @@ class SSHKeyTransmitter:
         if self._hosts_file:
             self._read_hosts_from_file()
 
-    def _cleanup(self, sock) -> None:
+    def _cleanup(self, sock: socks.socksocket | None = None) -> None:
         """Transmitter cleanup."""
         if self._ssh.get_transport():
             self._ssh.close()
         if sock:
-            sock.close()
+            self._socks_manager.close_socket(sock)
 
     def _put_public_key(self) -> None:
         """Transmit public key to connected host."""
         sftp = self._ssh.open_sftp()
         try:
-            # Throw IOError if directory doesn't exist
-            sftp.chdir(SSH_DIR)
+            sftp.chdir(DEFAULT_SSH_DIR)
         except IOError:
             sftp.chdir('.')
             self._log.warning(
                 'Directory %s does not exist. Will be created.',
-                posixpath.join(sftp.getcwd(), SSH_DIR),
+                posixpath.join(sftp.getcwd(), DEFAULT_SSH_DIR),
             )
             self._create_ssh_dir(sftp)
 
@@ -212,27 +222,26 @@ class SSHKeyTransmitter:
 
     @staticmethod
     def _create_ssh_dir(sftp: SFTPClient) -> None:
-        """Create `SSH_DIR` directory.
+        """Create `DEFAULT_SSH_DIR` directory.
 
         :Parameters:
-            - `sftp`: obj, paramiko sftp object.
+            - `sftp`: SFTPClient, paramiko sftp object.
         """
-        sftp.mkdir(SSH_DIR)
-        sftp.chmod(SSH_DIR, 0o700)
-        sftp.chdir(SSH_DIR)
+        sftp.mkdir(DEFAULT_SSH_DIR)
+        sftp.chmod(DEFAULT_SSH_DIR, 0o700)
+        sftp.chdir(DEFAULT_SSH_DIR)
 
     def _put_key(self, sftp: SFTPClient) -> None:
         """Transmit public key to connected host.
 
         :Parameters:
-            - `sftp`: obj, paramiko sftp object.
+            - `sftp`: SFTPClient, paramiko sftp object.
         """
-        remote_path = posixpath.join(sftp.getcwd(), SSH_AUTH_KEYS)
+        remote_path = posixpath.join(sftp.getcwd(), DEFAULT_SSH_AUTH_KEYS)
         try:
-            # Throw IOError if file doesn't exist
-            sftp.stat(SSH_AUTH_KEYS)
+            sftp.stat(DEFAULT_SSH_AUTH_KEYS)
         except IOError:
-            # Create `SSH_AUTH_KEYS` file
+            # Create `DEFAULT_SSH_AUTH_KEYS` file
             self._log.warning('File %s does not exist. Will be created.', remote_path)
             self._create_ssh_auth_keys_file(sftp, remote_path)
             self._log.info(
@@ -244,10 +253,10 @@ class SSHKeyTransmitter:
             self._append_key(sftp, remote_path)
 
     def _create_ssh_auth_keys_file(self, sftp: SFTPClient, remote_path: str) -> None:
-        """Create `SSH_AUTH_KEYS` file.
+        """Create `DEFAULT_SSH_AUTH_KEYS` file.
 
         :Parameters:
-            - `sftp`: obj, paramiko sftp object.
+            - `sftp`: SFTPClient, paramiko sftp object.
             - `remote_path`: str, remote path to key.
         """
         sftp.put(self._pubkey_file, remote_path)
@@ -257,10 +266,10 @@ class SSHKeyTransmitter:
         """Check if key exists.
 
         :Parameters:
-            - `sftp`: obj, paramiko sftp object.
+            - `sftp`: SFTPClient, paramiko sftp object.
             - `remote_path`: str, remote path to key.
         """
-        fd = sftp.file(SSH_AUTH_KEYS, mode='r', bufsize=1)
+        fd = sftp.file(DEFAULT_SSH_AUTH_KEYS, mode='r', bufsize=1)
         try:
             for line in fd:
                 if line.strip() == self._pubkey_data:
@@ -278,10 +287,10 @@ class SSHKeyTransmitter:
         """Append key.
 
         :Parameters:
-            - `sftp`: obj, paramiko sftp object.
+            - `sftp`: SFTPClient, paramiko sftp object.
             - `remote_path`: str, remote path to key.
         """
-        fd = sftp.file(SSH_AUTH_KEYS, mode='a', bufsize=1)
+        fd = sftp.file(DEFAULT_SSH_AUTH_KEYS, mode='a', bufsize=1)
         try:
             fd.write('\n' + self._pubkey_data)
             fd.flush()
@@ -298,7 +307,7 @@ class SSHKeyTransmitter:
             with open(self._pubkey_file, 'r') as fd:
                 self._pubkey_data = fd.read().strip()
         except Exception:
-            err_msg = 'Failed to read public key from {0}'.format(self._pubkey_file)
+            err_msg = f'Failed to read public key from {self._pubkey_file}'
             self._log.exception(err_msg)
             raise DataReadError(err_msg)
 
@@ -309,7 +318,7 @@ class SSHKeyTransmitter:
             with open(self._hosts_file, 'r') as fd:
                 self._hosts.update(fd.read().split())
         except Exception:
-            err_msg = 'Failed to read hosts from {0}'.format(self._hosts_file)
+            err_msg = f'Failed to read hosts from {self._hosts_file}'
             self._log.exception(err_msg)
             raise DataReadError(err_msg)
 
@@ -367,8 +376,8 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     if not (
-            all([args.pubkey, args.username, args.password])
-            or any([args.hosts, args.hosts_file])
+        all([args.pubkey, args.username, args.password])
+        or any([args.hosts, args.hosts_file])
     ):
         parser.print_help()
         raise ArgumentsValidationError('Failed to parse args')
@@ -382,7 +391,7 @@ def _init_logging() -> None:
     logging.getLogger('paramiko').setLevel(logging.WARNING)
 
 
-def main() -> int:
+def main() -> ExitCodeType:
     """Main function."""
     print(BANNER_TPL.format(version=__version__))
     _init_logging()
@@ -392,7 +401,7 @@ def main() -> int:
         args = _parse_args()
     except ArgumentsValidationError as err:
         logger.error(err)
-        return EXIT_ERROR
+        return ExitCodeType.EXIT_ERROR
 
     socks_manager = SocksManager(socks_host=args.socks_host, socks_port=args.socks_port)
 

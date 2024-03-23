@@ -30,13 +30,14 @@ $ python3 ssh-key-transmit.py -hosts 10.10.10.10 -u tropicoo -p my_passwd -pkey 
 
 Requirements
 ------------
-Python 3, Paramiko, PySocks.
+Python 3.10+, Paramiko, PySocks.
 
 Installation
 ------------
 
 ```
 git clone https://github.com/tropicoo/ssh-key-transmitter.git
+cd ssh-key-transmitter
 pip3 install -r requirements.txt
 ```
 
