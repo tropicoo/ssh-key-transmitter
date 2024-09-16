@@ -1,2 +1,2 @@
 PySocks==1.7.1
-paramiko==3.4.0
+paramiko==3.5.0
