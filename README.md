@@ -4,12 +4,14 @@ SSH Key Transmitter
 Bored to log in to remote servers through SSH every time using username/password
 combination?
 
-This simple script will help to transmit your SSH Public Key to them.
+This simple app will help you to transmit your SSH Public Key to your hosts.
 
 Need to connect through SOCKS5 proxy? No worries, it will do the job.
 
+> Sidenote: No really practical use case for this app, but it was fun to write it.
+
 ```bash
-$ python3 ssh-key-transmit.py -hosts 10.10.10.10 -u tropicoo -p my_passwd -pkey id_rsa_2048_ubuntu.pub --socks-host 127.0.0.1 --socks-port 1080
+$ python3 ssh-key-transmit.py -hosts 10.10.10.10 -u tropicoo -p my_passwd -pk id_rsa_2048_ubuntu.pub --socks-host 127.0.0.1 --socks-port 1080
 
 
 
@@ -30,7 +32,7 @@ $ python3 ssh-key-transmit.py -hosts 10.10.10.10 -u tropicoo -p my_passwd -pkey 
 
 Requirements
 ------------
-Python 3.10+, Paramiko, PySocks.
+Python 3.12+, Paramiko, PySocks, Typer.
 
 Installation
 ------------
@@ -46,36 +48,31 @@ Usage
 > Hosts or path to file with hosts, username, password and path to public key
 > file are mandatory.
 
-```
-$ python3 ssh-key-transmit.py -h
-usage: ssh-key-transmit.py [-h] [-hosts HOSTS [HOSTS ...]] [-u USERNAME]
-                           [-p PASSWORD] [-pkey PUBKEY]
-                           [--hosts-file HOSTS_FILE] [--socks-host SOCKS_HOST]
-                           [--socks-port SOCKS_PORT]
+```bash
+$ python3 ssh-key-transmit.py --help
 
-SSH Key Transmitter
+ Usage: ssh-key-transmit.py [OPTIONS]                                                       
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -hosts HOSTS [HOSTS ...]
-                        host(s) to transmit ssh public key
-  -u USERNAME, --username USERNAME
-                        auth username
-  -p PASSWORD, --password PASSWORD
-                        auth password
-  -pkey PUBKEY, --pub-key PUBKEY
-                        path to public key
-  --hosts-file HOSTS_FILE
-                        path to file with hosts list
-  --socks-host SOCKS_HOST
-                        socks5 proxy host
-  --socks-port SOCKS_PORT
-                        socks5 proxy port
+ SSH Key Transmitter.
+
+╭─ Options ────────────────────────────────────────────────────────────────────────────────╮
+│ *  --username    -u          TEXT                     auth username [required]           │
+│ *  --password    -p          TEXT                     auth password [required]           │
+│ *  --pub-key     -pk         FILE                     path to public key file [required] │
+│    --socks-host              TEXT                     socks5 proxy host                  │
+│    --socks-port              INTEGER                  socks5 proxy port                  │
+│    --hosts-file              FILE                     path to file with hosts list       │
+│                  -hosts      TEXT                     host(s) to transmit ssh public key │
+│    --verbose     -v          INTEGER RANGE [0<=x<=3]  log level 0-3. Default 2 (INFO)    │
+│                                                       [default: 2]                       │
+│    --version     -V                                   show application version           │
+│    --help                                             Show this message and exit.        │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 #### Some details
 
 | Argument     | Description                                                                         |
 |:-------------|:------------------------------------------------------------------------------------|
-| -hosts       | One or more hosts separated by comma, accepted format \<HOST\> or \<HOST\>:\<PORT\> |
+| -hosts       | One or more hosts separated by space, accepted format \<HOST\> or \<HOST\>:\<PORT\> |
 | --hosts-file | Path to text file with list of hosts separated by comma or spaces                   |

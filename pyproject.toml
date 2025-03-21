@@ -1,9 +1,51 @@
+[project]
+name = "ssh-key-transmitter"
+version = "0.2.3"
+description = "SSH Key Transmitter"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "paramiko>=3.5.1",
+    "pysocks>=1.7.1",
+    "typer>=0.15.2",
+]
+
+[dependency-groups]
+lint = [
+    "ruff>=0.9.3",
+]
+
 [tool.ruff]
 line-length = 88
-lint.select = ["F", "E", "W", "I001"]
-lint.ignore = ["E501", "E402"]  # Skip line length violations and module at top level
+indent-width = 4
+target-version = "py313"
+required-version = ">=0.9"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "B008",
+    "BLE001",
+    "COM812",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D203",
+    "D213",
+    "D401",
+    "E501",
+    "PLR0913",
+]
 
 [tool.ruff.format]
 indent-style = "space"
 quote-style = "single"
 line-ending = "lf"
+docstring-code-format = true
