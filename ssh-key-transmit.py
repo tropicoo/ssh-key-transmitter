@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """SSH Key Transmitter Module."""
 
 import typer

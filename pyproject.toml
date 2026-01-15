@@ -1,6 +1,6 @@
 [project]
 name = "ssh-key-transmitter"
-version = "0.2.3"
+version = "0.2.4"
 description = "SSH Key Transmitter"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -9,17 +9,17 @@ dependencies = [
     "pysocks>=1.7.1",
     "typer>=0.15.2",
 ]
-
 [dependency-groups]
-lint = [
-    "pyright>=1.1.398",
-    "ruff>=0.9.3",
+dev = [
+    "pylint>=4.0.4",
+    "ruff>=0.14.13",
+    "ty>=0.0.12",
 ]
 
 [tool.ruff]
 line-length = 88
 indent-width = 4
-target-version = "py313"
+target-version = "py312"
 required-version = ">=0.9"
 
 [tool.ruff.lint.flake8-quotes]
