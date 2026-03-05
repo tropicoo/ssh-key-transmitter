@@ -1,5 +1,6 @@
 import logging
 import posixpath
+from collections.abc import Iterable
 from pathlib import Path
 
 import socks
@@ -20,7 +21,7 @@ class SSHKeyTransmitter:
         password: str,
         pubkey: Path,
         socks_manager: SocksManager,
-        hosts: list[str] | None = None,
+        hosts: Iterable[str] | None = None,
         hosts_file: Path | None = None,
     ) -> None:
         """Constructor.
