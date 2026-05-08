@@ -19,14 +19,13 @@ class SocksManager:
         dest_host: str,
         dest_port: str | int,
     ) -> socks.socksocket | None:
-        """Create open socket.
+        """Create an open socket.
 
         :Parameters:
             - `dest_host`: str, destination host to connect through proxy.
             - `dest_port`: str/int, destination port to connect through proxy.
         """
-        if not (self._host and self._port):
-            return None
+        dest_port = int(dest_port)
         sock = socks.socksocket()
         sock.set_proxy(proxy_type=socks.SOCKS5, addr=self._host, port=self._port)
         sock.connect((dest_host, dest_port))

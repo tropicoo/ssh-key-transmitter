@@ -8,7 +8,7 @@ from paramiko import AuthenticationException, AutoAddPolicy, SSHClient
 from paramiko.sftp_client import SFTPClient
 
 from src.constants import DEFAULT_SSH_AUTH_KEYS, DEFAULT_SSH_DIR, DEFAULT_SSH_PORT
-from src.core.manager import SocksManager
+from src.core.socks_manager import SocksManager
 from src.exceptions import DataReadError, SSHKeyTransmitterError
 
 
@@ -232,7 +232,7 @@ class SSHKeyTransmitter:
             raise DataReadError(err_msg) from err
 
     def _read_hosts_from_file(self) -> None:
-        """Read hosts list from file."""
+        """Read the host list from a file."""
         self._log.info('Reading hosts list from "%s"', self._hosts_file)
         try:
             with self._hosts_file.open() as fd_in:
