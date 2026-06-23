@@ -221,7 +221,7 @@ class SSHKeyTransmitter:
         )
 
     def _read_pubkey(self) -> None:
-        """Read public key from file."""
+        """Read the public key from a file."""
         self._log.info('Reading public key from "%s"', self._pubkey_file)
         try:
             with self._pubkey_file.open() as fd_in:

@@ -1,6 +1,6 @@
 [project]
 name = "ssh-key-transmitter"
-version = "0.2.4"
+version = "0.2.6"
 description = "SSH Key Transmitter"
 readme = "README.md"
 requires-python = ">=3.12"
