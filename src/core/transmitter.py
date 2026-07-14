@@ -2,6 +2,7 @@ import logging
 import posixpath
 from collections.abc import Iterable
 from pathlib import Path
+from typing import cast
 
 import socks
 from paramiko import AuthenticationException, AutoAddPolicy, SSHClient
@@ -210,7 +211,7 @@ class SSHKeyTransmitter:
         """
         fd = sftp.file(DEFAULT_SSH_AUTH_KEYS, mode='a', bufsize=1)
         try:
-            fd.write('\n' + self._pubkey_data)
+            fd.write('\n' + cast('str', self._pubkey_data))
             fd.flush()
         finally:
             fd.close()
@@ -235,7 +236,7 @@ class SSHKeyTransmitter:
         """Read hosts list from file."""
         self._log.info('Reading hosts list from "%s"', self._hosts_file)
         try:
-            with self._hosts_file.open() as fd_in:
+            with cast('Path', self._hosts_file).open() as fd_in:
                 self._hosts.update(fd_in.read().split())
         except Exception as err:
             err_msg = f'Failed to read hosts from "{self._hosts_file}"'
