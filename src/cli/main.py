@@ -5,7 +5,7 @@ from rich import print as rich_print
 from typer import Abort, Option
 
 from src.cli.callbacks import typer_version_callback
-from src.core.manager import SocksManager
+from src.core.socks_manager import SocksManager
 from src.core.transmitter import SSHKeyTransmitter
 from src.enums import ExitCodeType, LogLevelType
 from src.log import init_logging

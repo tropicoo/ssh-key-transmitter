@@ -1,22 +1,24 @@
 [project]
 name = "ssh-key-transmitter"
-version = "0.2.4"
+version = "0.2.7"
 description = "SSH Key Transmitter"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "paramiko>=3.5.1",
     "pysocks>=1.7.1",
-    "ty>=0.0.59",
     "typer>=0.15.2",
 ]
 [dependency-groups]
 dev = [
     "bandit>=1.9.3",
+    "pip>=26.1.1",
     "pylint>=4.0.4",
     "pytest>=9.0.3",
     "ruff>=0.14.13",
+    "setuptools>=82.0.1",
     "ty>=0.0.12",
+    "wheel>=0.47.0",
 ]
 
 [tool.ruff]
