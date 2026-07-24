@@ -15,9 +15,7 @@ class SocksManager:
         self._port = socks_port
 
     def create_socket(
-        self,
-        dest_host: str,
-        dest_port: str | int,
+        self, dest_host: str, dest_port: str | int
     ) -> socks.socksocket | None:
         """Create an open socket.
 

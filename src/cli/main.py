@@ -110,10 +110,7 @@ def main(
         pubkey=pubkey,
         hosts=hosts,
         hosts_file=hosts_file,
-        socks_manager=SocksManager(
-            socks_host=socks_host,
-            socks_port=socks_port,
-        ),
+        socks_manager=SocksManager(socks_host=socks_host, socks_port=socks_port),
     )
     transmitter.run()
     return ExitCodeType.EXIT_OK

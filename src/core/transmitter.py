@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import cast
 
 import socks
-from paramiko import AuthenticationException, AutoAddPolicy, SSHClient
+from paramiko import AuthenticationException
 from paramiko.sftp_client import SFTPClient
 
+from core.utils import create_ssh_client
 from src.constants import DEFAULT_SSH_AUTH_KEYS, DEFAULT_SSH_DIR, DEFAULT_SSH_PORT
 from src.core.socks_manager import SocksManager
-from src.exceptions import DataReadError, SSHKeyTransmitterError
+from src.exceptions import SSHKeyTransmitterError
 
 
 class SSHKeyTransmitter:
@@ -45,9 +46,7 @@ class SSHKeyTransmitter:
         self._pubkey_data: str | None = None
 
         self._socks_manager = socks_manager
-
-        self._ssh_client = SSHClient()
-        self._ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        self._ssh_client = create_ssh_client()
 
     def run(self) -> None:
         """Run SSH Key Transmitter."""
@@ -86,7 +85,7 @@ class SSHKeyTransmitter:
             self._log.info('Transmitting public key to %s:%s', host, port)
             sock: socks.socksocket | None = None
             try:
-                sock = self._socks_manager.create_socket(host, port)
+                sock = self._socks_manager.create_socket(dest_host=host, dest_port=port)
                 self._ssh_client.connect(
                     hostname=host,
                     port=int(port),
@@ -133,7 +132,7 @@ class SSHKeyTransmitter:
             self._create_ssh_dir(sftp)
 
         try:
-            self._put_key(sftp)
+            self._put_key(sftp=sftp)
         finally:
             sftp.close()
 
@@ -168,8 +167,8 @@ class SSHKeyTransmitter:
             )
             return
 
-        if not self._key_exists(sftp, remote_path):
-            self._append_key(sftp, remote_path)
+        if not self._key_exists(sftp=sftp, remote_path=remote_path):
+            self._append_key(sftp=sftp, remote_path=remote_path)
 
     def _create_ssh_auth_keys_file(self, sftp: SFTPClient, remote_path: str) -> None:
         """Create `DEFAULT_SSH_AUTH_KEYS` file.
@@ -230,7 +229,7 @@ class SSHKeyTransmitter:
         except Exception as err:
             err_msg = f'Failed to read public key from "{self._pubkey_file}"'
             self._log.error(err_msg)
-            raise DataReadError(err_msg) from err
+            raise SSHKeyTransmitterError(err_msg) from err
 
     def _read_hosts_from_file(self) -> None:
         """Read the host list from a file."""
@@ -241,4 +240,4 @@ class SSHKeyTransmitter:
         except Exception as err:
             err_msg = f'Failed to read hosts from "{self._hosts_file}"'
             self._log.error(err_msg)
-            raise DataReadError(err_msg) from err
+            raise SSHKeyTransmitterError(err_msg) from err
