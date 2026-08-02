@@ -1,6 +1,6 @@
 import logging
 
-from src.enums import LogLevelType
+from ssh_key_transmitter.enums import LogLevelType
 
 
 def init_logging(level: LogLevelType) -> None:
