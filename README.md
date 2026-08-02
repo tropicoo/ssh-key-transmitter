@@ -11,7 +11,7 @@ Need to connect through SOCKS5 proxy? No worries, it will do the job.
 > Sidenote: No really practical use case for this app, but it was fun to write it.
 
 ```bash
-$ python3 ssh-key-transmit.py -hosts 10.10.10.10 -u tropicoo -p my_passwd -pk id_rsa_2048_ubuntu.pub --socks-host 127.0.0.1 --socks-port 1080
+$ ssh-key-transmitter -hosts 10.10.10.10 -u tropicoo -p my_passwd -pk id_rsa_2048_ubuntu.pub --socks-host 127.0.0.1 --socks-port 1080
 
 
 
@@ -38,9 +38,7 @@ Installation
 ------------
 
 ```
-git clone https://github.com/tropicoo/ssh-key-transmitter.git
-cd ssh-key-transmitter
-uv sync
+uv tool install git+https://github.com/tropicoo/ssh-key-transmitter
 ```
 
 Usage
@@ -49,9 +47,9 @@ Usage
 > file are mandatory.
 
 ```bash
-$ uv run ssh-key-transmitter --help
+$ ssh-key-transmitter --help
 
- Usage: ssh-key-transmit.py [OPTIONS]                                                       
+ Usage: ssh-key-transmitter [OPTIONS]                                                       
 
  SSH Key Transmitter.
 
