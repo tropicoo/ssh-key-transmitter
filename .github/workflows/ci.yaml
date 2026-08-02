@@ -15,10 +15,12 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
           enable-cache: true
@@ -28,32 +30,37 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ty check .
 
-#  test:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        python-version: ["3.12", "3.13"]
-#    steps:
-#      - uses: actions/checkout@v7
-#
-#      - uses: astral-sh/setup-uv@v7
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          enable-cache: true
-#
-#      - run: uv sync --locked --all-extras --dev
-#      - run: uv run pytest
-
   security:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      UV_MALWARE_CHECK: "1"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
           enable-cache: true
 
       - run: uv sync --locked --all-extras --dev
+      - run: uv audit
       - run: uv run bandit -c pyproject.toml -r src/
+      - run: uv run semgrep scan --config auto --error
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v2.x.x
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b # v3.x.x
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b # v3.x.x
