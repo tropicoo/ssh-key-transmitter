@@ -60,7 +60,7 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: github/codeql-action/init@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b # v3.x.x
+      - uses: github/codeql-action/init@1cd4d01d58f636bbdbffbfd3c121b3446d07e9f3 # v3.x.x
         with:
           languages: python
       - uses: github/codeql-action/analyze@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b # v3.x.x
