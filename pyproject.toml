@@ -23,6 +23,13 @@ dev = [
     "wheel>=0.47.0",
 ]
 
+[project.scripts]
+ssh-key-transmitter = "ssh_key_transmitter:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
 [tool.ruff]
 line-length = 88
 indent-width = 4
@@ -58,3 +65,9 @@ indent-style = "space"
 quote-style = "single"
 line-ending = "lf"
 docstring-code-format = true
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]

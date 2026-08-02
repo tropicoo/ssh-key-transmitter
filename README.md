@@ -40,7 +40,7 @@ Installation
 ```
 git clone https://github.com/tropicoo/ssh-key-transmitter.git
 cd ssh-key-transmitter
-pip3 install -r requirements.txt
+uv sync
 ```
 
 Usage
@@ -49,7 +49,7 @@ Usage
 > file are mandatory.
 
 ```bash
-$ python3 ssh-key-transmit.py --help
+$ uv run ssh-key-transmitter --help
 
  Usage: ssh-key-transmit.py [OPTIONS]                                                       
 

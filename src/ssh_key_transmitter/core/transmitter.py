@@ -8,16 +8,20 @@ import socks
 from paramiko import AuthenticationException
 from paramiko.sftp_client import SFTPClient
 
-from core.utils import create_ssh_client
-from src.constants import DEFAULT_SSH_AUTH_KEYS, DEFAULT_SSH_DIR, DEFAULT_SSH_PORT
-from src.core.socks_manager import SocksManager
-from src.exceptions import SSHKeyTransmitterError
+from ssh_key_transmitter.constants import (
+    DEFAULT_SSH_AUTH_KEYS,
+    DEFAULT_SSH_DIR,
+    DEFAULT_SSH_PORT,
+)
+from ssh_key_transmitter.core.socks_manager import SocksManager
+from ssh_key_transmitter.core.utils import create_ssh_client
+from ssh_key_transmitter.exceptions import SSHKeyTransmitterError
 
 
 class SSHKeyTransmitter:
     """SSH Key Transmitter Class."""
 
-    def __init__(
+    def __init__(  # noqa : PLR0917
         self,
         username: str,
         password: str,

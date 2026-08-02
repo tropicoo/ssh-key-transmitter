@@ -4,14 +4,14 @@ from typing import Annotated
 from rich import print as rich_print
 from typer import Abort, Option
 
-from src.cli.callbacks import typer_version_callback
-from src.core.socks_manager import SocksManager
-from src.core.transmitter import SSHKeyTransmitter
-from src.enums import ExitCodeType, LogLevelType
-from src.log import init_logging
+from ssh_key_transmitter.cli.callbacks import typer_version_callback
+from ssh_key_transmitter.core.socks_manager import SocksManager
+from ssh_key_transmitter.core.transmitter import SSHKeyTransmitter
+from ssh_key_transmitter.enums import ExitCodeType, LogLevelType
+from ssh_key_transmitter.log import init_logging
 
 
-def main(
+def cli_main_entrypoint(  # noqa: PLR0917
     username: Annotated[
         str,
         Option(
