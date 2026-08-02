@@ -5,7 +5,21 @@ on:
     branches:
       - main
       - master
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".gitignore"
+      - ".python-version"
+      - ".editorconfig"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".gitignore"
+      - ".python-version"
+      - ".editorconfig"
   workflow_dispatch:
 
 concurrency:
